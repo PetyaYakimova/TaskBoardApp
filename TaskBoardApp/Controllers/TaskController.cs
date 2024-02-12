@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.SqlServer.Query.Internal;
 using System.Security.Claims;
 using TaskBoardApp.Data;
 using TaskBoardApp.Models;
@@ -53,6 +54,87 @@ namespace TaskBoardApp.Controllers
 			await data.AddAsync(entity);
 			await data.SaveChangesAsync();
 
+			return RedirectToAction("Index", "Board");
+		}
+
+		[HttpGet]
+		public async Task<IActionResult> Details(int id)
+		{
+			var task = await data.Tasks
+				.Where(t => t.Id == id)
+				.Select(t => new TaskDetailsViewModel()
+				{
+					Board = t.Board.Name,
+					Title = t.Title,
+					Description = t.Description,
+					Id = t.Id,
+					CreatedOn = t.CreatedOn != null ? t.CreatedOn.Value.ToString("dd.MM.yyy HH:mm") : "",
+					Owner = t.Owner.UserName
+				}).FirstOrDefaultAsync();
+
+			return View(task);
+		}
+
+		[HttpGet]
+		public async Task<IActionResult> Edit(int id)
+		{
+			var task = await data.Tasks
+				.FindAsync(id);
+
+			if (task == null)
+			{
+				return BadRequest();
+			}
+
+			if (task.OwnerId != GetUserId())
+			{
+				return Unauthorized();
+			}
+
+			var model = new TaskFormViewModel()
+			{
+				BoardId = task.BoardId,
+				Description = task.Description,
+				Title = task.Title,
+				Id = task.Id,
+				Boards = await GetBoards()
+			};
+
+			return View(model);
+		}
+
+		[HttpPost]
+		public async Task<IActionResult> Edit(TaskFormViewModel model, int id)
+		{
+			var task = await data.Tasks
+				.FindAsync(id);
+
+			if (task == null)
+			{
+				return BadRequest();
+			}
+
+			if (task.OwnerId != GetUserId())
+			{
+				return Unauthorized();
+			}
+
+			if (!(await GetBoards()).Any(b => b.Id == model.BoardId))
+			{
+				ModelState.AddModelError(nameof(model.BoardId), "Board does not exist");
+			}
+
+			if (!ModelState.IsValid)
+			{
+				model.Boards = await GetBoards();
+				return View(model);
+			}
+
+			task.Title = model.Title;
+			task.Description = model.Description;
+			task.BoardId = model.BoardId;
+
+			await data.SaveChangesAsync();
 			return RedirectToAction("Index", "Board");
 		}
 

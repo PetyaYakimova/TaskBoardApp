@@ -28,7 +28,6 @@ namespace TaskBoardApp.Controllers
                         Id = t.Id,
                         Title = t.Title,
                         Description = t.Description,
-                        CreatedOn = t.CreatedOn,
                         Owner = t.Owner.UserName
                     })
                 })
