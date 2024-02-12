@@ -138,6 +138,53 @@ namespace TaskBoardApp.Controllers
 			return RedirectToAction("Index", "Board");
 		}
 
+		[HttpGet]
+		public async Task<IActionResult> Delete(int id)
+		{
+            var task = await data.Tasks
+                .FindAsync(id);
+
+            if (task == null)
+            {
+                return BadRequest();
+            }
+
+            if (task.OwnerId != GetUserId())
+            {
+                return Unauthorized();
+            }
+
+            var model = new TaskViewModel()
+            {
+                Description = task.Description,
+                Title = task.Title,
+                Id = task.Id
+            };
+
+            return View(model);
+        }
+
+		[HttpPost]
+		public async Task<IActionResult> Delete(TaskViewModel model)
+		{
+            var task = await data.Tasks
+                .FindAsync(model.Id);
+
+            if (task == null)
+            {
+                return BadRequest();
+            }
+
+            if (task.OwnerId != GetUserId())
+            {
+                return Unauthorized();
+            }
+
+			data.Tasks.Remove(task);
+			await data.SaveChangesAsync();
+			return RedirectToAction("Index", "Board");
+        }
+
 		private string GetUserId()
 		{
 			return User.FindFirstValue(ClaimTypes.NameIdentifier);
